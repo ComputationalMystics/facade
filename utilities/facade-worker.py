@@ -28,7 +28,7 @@
 
 import sys
 import platform
-import imp
+import importlib
 import time
 import datetime
 import html.parser
@@ -45,12 +45,10 @@ else:
 
 global log_level
 
-html = html.parser.HTMLParser()
-
 # Important: Do not modify the database number unless you've also added an
 # update clause to update_db!
 
-upstream_db = 6
+upstream_db = 7
 
 #### Database update functions ####
 
@@ -193,6 +191,21 @@ def update_db(version):
 
 		increment_db(6)
 
+	if version < 7:
+
+		# Using NULL for en unbounded nd_date in special_tags ended up being
+		# difficult when doing certain types of reports. The logic is much
+		# cleaner if we just use an end_date that is ridiculously far into the
+		# future.
+
+		remove_null_end_dates_in_special_tags = ("UPDATE special_tags "
+			"SET end_date = '9999-12-31' WHERE end_date IS NULL")
+
+		cursor.execute(remove_null_end_dates_in_special_tags)
+		db.commit
+
+		increment_db(7)
+
 	print("No further database updates.\n")
 
 def migrate_database_config():
@@ -203,7 +216,7 @@ def migrate_database_config():
 
 	try:
 		# If the old database config was found, write a new config
-		imp.find_module('db')
+		importlib.utils.find_spec('db')
 
 		db_config = configparser.ConfigParser()
 
